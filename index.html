@@ -1,0 +1,280 @@
+<html>
+  <head></head>
+  <body>
+    <div id="game"></div>
+    <script type="text/javascript" src="crafty.js"></script>
+    <script>
+
+      //deerminação do tamanho do canvas
+      var width = 800;
+      var height = 600;
+
+      //declaração de variáveis
+      var paddle_height = 90;
+      var paddle_thickness = 12;
+      
+      var paddle_speed = 80;
+
+      var ball_speed_X = 3;
+      var ball_speed_Y = 3;
+
+      var paddle_left;
+      var paddle_right;
+      var ball;
+
+      var paddle_points_left;
+      var paddle_points_right;
+
+      var flower_left;
+      var flower_right;
+      var flower_screen;
+
+      var rect_left;
+      var rect_right;
+      var rect_screen;
+
+      var text_screen;
+      var text_end;
+      var inst;
+
+      var click;
+
+      Crafty.init(width,height, document.getElementById('game'));
+      Crafty.background('#FFFFFF url(grass_st.jpg) no-repeat center center');
+
+      //elementos da tela inicial
+      rect_screen = Crafty.e('Rect, 2D, Canvas, Multiway, Color, Collision')
+      rect_screen.attr({x: width/4, y: height/3, w: width/2, h: height/3})
+      rect_screen.color('#FFF6F4', 0.2)
+
+      text_screen = Crafty.e('Text_screen, DOM, 2D, Text')
+      text_screen.attr({ x: width/4 + 20, y: height/2 - 40, w: 360})
+      text_screen.textColor('white')
+      text_screen.textFont({ size: '25px', weight: 'bold' });
+      text_screen.text('Não deixe que o inseto ataque suas flores. Aproveite e o coloque no jardim do vizinho!');
+
+      inst = Crafty.e('Text_screen, DOM, 2D, Text')
+      inst.attr({ x: width/3+60, y: height-50, w: 360})
+      inst.textColor('#FFF6F4')
+      inst.textFont({ size: '10px', weight: 'italic' });
+      inst.text('(Clique para começar)');
+
+      //sprites das flores
+      var assets = {
+        "sprites": {
+          "flower.png": {
+            tile: 800,
+            tileh: 600,
+            map: {
+              flower: [0, 0],
+            }
+          }
+        }
+      };
+
+      Crafty.load(assets);
+
+      //laços para desenho das flores em cada lado
+      for (var i = 0; i < 10; i++){
+        flower_screen = Crafty.e('Flor, 2D, Canvas, flower')
+        flower_screen.attr({ x: Crafty.math.randomInt(0, 40), y: Crafty.math.randomInt(0, height-20)});
+        flower_screen.sprite(0,0);
+      }
+
+      for (var i = 0; i < 10; i++){
+        flower_screen = Crafty.e('Flor, 2D, Canvas, flower')
+        flower_screen.attr({ x: Crafty.math.randomInt(width-60, width-20), y: Crafty.math.randomInt(0, height-20)});
+        flower_screen.sprite(0,0);
+      }
+
+      //clique para iniciar o jogo
+      click = Crafty.e("2D");
+      click.onMouseDown = function(e) {
+        text_screen.destroy();
+        rect_screen.destroy();
+        inst.destroy();
+        new_game();
+      };
+
+      Crafty.addEvent(click, Crafty.stage.elem, "mousedown", click.onMouseDown);
+
+      function new_game(){
+        //remoção do evento de clique enquanto o jogo executa
+        Crafty.removeEvent(click, Crafty.stage.elem, "mousedown", click.onMouseDown);
+        Crafty.background('#FFFFFF url(grass.jpg) no-repeat center center');
+
+        //elementos visuais na tela de jogo
+        rect_left = Crafty.e('Rect, 2D, Canvas, Multiway, Color, Collision')
+        rect_left.attr({x: width/4-50, y: 10, w:90, h: 40})
+        rect_left.color('gray', 0.5)
+
+        rect_right = Crafty.e('Rect, 2D, Canvas, Multiway, Color, Collision')
+        rect_right.attr({x: 3*(width/4)-50, y: 10, w:90, h: 40})
+        rect_right.color('gray', 0.5)
+
+        flower_left = Crafty.e('Flor, 2D, Canvas, flower')
+        flower_left.attr({ x: width/4 - 30, y: 22});
+        flower_left.sprite(0,0);
+
+        flower_right = Crafty.e('Flor, 2D, Canvas, flower')
+        flower_right.attr({ x: 3*(width/4) - 30, y: 22});
+        flower_right.sprite(0,0);
+
+        //jogador 1 e seus atributos
+        paddle_left = Crafty.e('Paddle_left, 2D, Canvas, Multiway, Color, Collision')
+        paddle_left.attr({x: 0, y: height/2 - paddle_height/2, w: paddle_thickness, h: paddle_height})
+        paddle_left.color('#FFF6F4')
+        paddle_left.multiway(paddle_speed, {W: -90, S: 90});
+        paddle_left.bind("UpdateFrame", function() {
+          if (this.y <= 0){
+            this.y = 0;
+          }
+          if (this.y >= height - (paddle_height - paddle_thickness)){
+            this.y = height - (paddle_height - paddle_thickness);
+          }
+        });
+
+        //jogador 2 e seus atributos
+        paddle_right = Crafty.e('Paddle_right, 2D, Canvas, Multiway, Color, Collision')
+        paddle_right.attr({x: width - paddle_thickness, y: height/2 - paddle_height/2, w: paddle_thickness, h: paddle_height} )
+        paddle_right.color('#FFF6F4')
+        paddle_right.multiway(paddle_speed, {UP_ARROW: -90, DOWN_ARROW: 90});
+        paddle_right.bind("UpdateFrame", function() {
+          if (this.y <= 0){
+            this.y = 0;
+          }
+          if (this.y >= height - (paddle_height - paddle_thickness)){
+            this.y = height - (paddle_height - paddle_thickness);
+          }
+        });
+
+        //sprites do inseto
+        var game_assets = {
+          "sprites": {
+            "spr_ball.png": {
+              tile: 41.5,
+              tileh: 40,
+              map: {
+                spr_ball0: [0, 0],
+                spr_ball1: [1, 0],
+                spr_ball2: [2, 0],
+                spr_ball3: [3, 0]
+              }
+            }
+          }
+        };
+
+        Crafty.load(game_assets);
+
+        //atributos do inseto, troca de sprite, colisões e contagem dos pontos
+        ball = Crafty.e('Ball, 2D, Canvas, spr_ball1, Color, Collision')
+        ball.attr({ x: width/2, y: height/2, dX: ball_speed_X, dY: ball_speed_Y});
+        ball.bind('UpdateFrame', function (){
+          if (this.y <= 0){
+            this.dY *= -1;
+            if (this.dX >= 0){
+              this.sprite(1,0);
+            }
+            if (this.dX < 0){
+              this.sprite(2,0);
+            }
+          }
+          if (this.y >= height - 40){
+            this.dY *= -1;
+            if (this.dX >= 0){
+              this.sprite(0,0);
+            }
+            if (this.dX < 0){
+              this.sprite(3,0);
+            }
+          }
+          if (this.x > width) {
+            Crafty('paddle_points_right').each(function (){
+            this.text(--this.points)
+            if (this.points < 0){
+              end_game();
+              text_end = Crafty.e('Text_end, DOM, 2D, Text')
+              text_end.attr({ x: width/2 - 120, y: height/2 - 10, w: 300})
+              text_end.textColor('white')
+              text_end.textFont({ size: '25px', weight: 'bold' });
+              text_end.text('Vitória do Jogador 1');
+            }
+          });
+            this.x = width/2;
+          }
+          if (this.x <= 0) {
+            Crafty('paddle_points_left').each(function (){
+            this.text(--this.points)
+            if (this.points < 0){
+              end_game();
+              text_end = Crafty.e('Text_end, DOM, 2D, Text')
+              text_end.attr({ x: width/2 - 120, y: height/2 - 10, w: 300})
+              text_end.textColor('white')
+              text_end.textFont({ size: '25px', weight: 'bold' });
+              text_end.text('Vitória do Jogador 2');
+            }
+          });
+            this.x = width/2;
+        }
+        this.x += this.dX;
+        this.y += this.dY;
+        })
+
+        //troca de sprite ao colidir com o jogador 1
+        ball.onHit('Paddle_left', function (){
+          this.dX *= -1;
+          if (this.dY >= 0){
+            this.sprite(1,0);
+          }
+          if (this.dY < 0){
+            this.sprite(0,0);
+          }
+        })
+
+        //troca de sprite ao colidir com o jogador 2
+        ball.onHit('Paddle_right', function (){
+          this.dX *= -1;
+          if (this.dY >= 0){
+            this.sprite(2,0);
+          }
+          if (this.dY < 0){
+            this.sprite(3,0);
+          }
+        })
+
+        //definição dos pontos
+        paddle_points_left = Crafty.e('paddle_points_left, DOM, 2D, Text')
+        paddle_points_left.attr({ x: width/4, y: 20, w: 100, h: 20, points: 3 })
+        paddle_points_left.textColor('white')
+        paddle_points_left.textFont({ size: '20px', weight: 'bold' });
+        paddle_points_left.text('3');
+
+        paddle_points_right = Crafty.e('paddle_points_right, DOM, 2D, Text')
+        paddle_points_right.attr({ x: 3*width/4, y: 20, w: 100, h: 20, points: 3 })
+        paddle_points_right.textColor('white')
+        paddle_points_right.textFont({ size: '20px', weight: 'bold' });
+        paddle_points_right.text('3');
+      }
+
+    function end_game(){
+      Crafty.background('#FFFFFF url(grass_st.jpg) no-repeat center center');
+
+      rect_screen = Crafty.e('Rect, 2D, Canvas, Multiway, Color, Collision')
+      rect_screen.attr({x: width/3, y: height/3+50, w: width/3, h: height/6})
+      rect_screen.color('#FFF6F4', 0.2)
+
+      //destruição dos elementos do jogo em execução
+      paddle_left.destroy();
+      paddle_right.destroy();
+      ball.destroy();
+      paddle_points_left.destroy();
+      paddle_points_right.destroy();
+      flower_left.destroy();
+      flower_right.destroy();
+      rect_left.destroy();
+      rect_right.destroy();
+    }
+
+    </script>
+  </body>
+</html>
